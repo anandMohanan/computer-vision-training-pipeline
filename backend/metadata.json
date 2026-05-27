@@ -1,0 +1,10 @@
+{
+  "sample_id": "phase3-flow-001",
+  "device_id": "edge-cam-01",
+  "timestamp": "2026-05-27T12:30:00Z",
+  "model": {"name": "yolo11n", "version": "v1"},
+  "filter_decision": "forward_candidate",
+  "selection_reason": "uncertainty",
+  "uncertainty_score": 0.88,
+  "detections": []
+}
