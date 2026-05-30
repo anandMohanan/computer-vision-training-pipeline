@@ -50,6 +50,38 @@ services:
       "
     restart: "no"
 
+  label-studio:
+    image: heartexlabs/label-studio:latest
+    container_name: yolo-label-studio
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - label_studio_data:/label-studio/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
+  label-studio-yolo-ml:
+    image: heartexlabs/label-studio-ml-backend:yolo-master
+    container_name: yolo-label-studio-yolo-ml
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      LABEL_STUDIO_URL: http://label-studio:8080
+      LOG_LEVEL: INFO
+      ALLOW_CUSTOM_MODEL_PATH: "true"
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./models:/app/models
+    depends_on:
+      - label-studio
+
 volumes:
   postgres_data:
   minio_data:
+  label_studio_data:

@@ -3,8 +3,11 @@ import uuid
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 
+from backend.label_studio_scheduler import LabelStudioScheduler
+from backend.label_studio_sync import SyncError, _load_config
 from backend.routes.annotations import router as annotations_router
 from backend.routes.queue import router as queue_router
 from backend.routes.samples import router as samples_router
@@ -18,6 +21,15 @@ app = FastAPI(
     docs_url="/swagger",
     openapi_url="/openapi.json",
 )
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_allow_origins,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["*"],
+)
+
+label_studio_scheduler: LabelStudioScheduler | None = None
 
 
 @app.middleware("http")
@@ -83,9 +95,34 @@ async def request_validation_exception_handler(request: Request, exc: RequestVal
 
 
 @app.on_event("startup")
-def on_startup() -> None:
+async def on_startup() -> None:
+    global label_studio_scheduler
     run_startup_checks(settings)
     logger.info("startup checks passed")
+    if not settings.label_studio_sync_enabled:
+        return
+
+    try:
+        sync_cfg = _load_config()
+    except SyncError as exc:
+        logger.error(f"label studio scheduler not started: {exc}")
+        return
+
+    label_studio_scheduler = LabelStudioScheduler(
+        sync_cfg,
+        enabled=settings.label_studio_sync_enabled,
+        interval_seconds=settings.label_studio_sync_interval_seconds,
+        run_on_startup=settings.label_studio_sync_run_on_startup,
+        run_export_enabled=settings.label_studio_sync_run_export,
+        run_import_enabled=settings.label_studio_sync_run_import,
+    )
+    await label_studio_scheduler.start()
+
+
+@app.on_event("shutdown")
+async def on_shutdown() -> None:
+    if label_studio_scheduler is not None:
+        await label_studio_scheduler.stop()
 
 
 app.include_router(system_router)

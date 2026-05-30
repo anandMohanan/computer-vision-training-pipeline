@@ -19,6 +19,12 @@ class Settings:
     auto_create_s3_bucket: bool
     log_level: str
     metrics_persist_enabled: bool
+    cors_allow_origins: list[str]
+    label_studio_sync_enabled: bool
+    label_studio_sync_interval_seconds: int
+    label_studio_sync_run_on_startup: bool
+    label_studio_sync_run_export: bool
+    label_studio_sync_run_import: bool
 
 
 def _must_get(name: str) -> str:
@@ -33,6 +39,13 @@ def _bool_env(name: str, default: bool) -> bool:
     if value is None:
         return default
     return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _list_env(name: str, default: list[str]) -> list[str]:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return [item.strip() for item in value.split(",") if item.strip()]
 
 
 def load_settings() -> Settings:
@@ -52,4 +65,10 @@ def load_settings() -> Settings:
         auto_create_s3_bucket=_bool_env("AUTO_CREATE_S3_BUCKET", False),
         log_level=os.getenv("LOG_LEVEL", "INFO"),
         metrics_persist_enabled=_bool_env("METRICS_PERSIST_ENABLED", True),
+        cors_allow_origins=_list_env("CORS_ALLOW_ORIGINS", ["http://localhost:8080", "http://127.0.0.1:8080"]),
+        label_studio_sync_enabled=_bool_env("LABEL_STUDIO_SYNC_ENABLED", False),
+        label_studio_sync_interval_seconds=int(os.getenv("LABEL_STUDIO_SYNC_INTERVAL_SECONDS", "300")),
+        label_studio_sync_run_on_startup=_bool_env("LABEL_STUDIO_SYNC_RUN_ON_STARTUP", True),
+        label_studio_sync_run_export=_bool_env("LABEL_STUDIO_SYNC_RUN_EXPORT", True),
+        label_studio_sync_run_import=_bool_env("LABEL_STUDIO_SYNC_RUN_IMPORT", True),
     )
